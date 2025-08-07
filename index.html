@@ -1,0 +1,354 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Game 3D Matematika Lanjutan</title>
+
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+
+    <style>
+        body {
+            margin: 0;
+            font-family: 'Arial', sans-serif;
+            overflow: hidden;
+            background-color: #0d1117; /* Dark background */
+            color: #c9d1d9; /* Light text */
+            touch-action: none;
+        }
+        
+        .ui-container {
+            position: absolute;
+            top: 50%;
+            left: 50%;
+            transform: translate(-50%, -50%);
+            z-index: 10;
+            background: rgba(13, 17, 23, 0.85);
+            padding: 3rem;
+            border-radius: 15px;
+            text-align: center;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.5);
+            transition: opacity 1s ease-in-out;
+            min-width: 400px;
+        }
+        .hidden {
+            display: none;
+        }
+        
+        .ui-container h1 {
+            color: #58a6ff;
+            font-size: 3rem;
+            margin-bottom: 1rem;
+        }
+        .ui-container p {
+            font-size: 1.2rem;
+            margin-bottom: 1.5rem;
+            color: #8b949e;
+        }
+        .ui-container button {
+            padding: 1rem 2.5rem;
+            font-size: 1.5rem;
+            background-color: #21262d;
+            color: white;
+            border: 2px solid #58a6ff;
+            border-radius: 8px;
+            cursor: pointer;
+            margin: 0.5rem;
+            transition: background-color 0.3s, transform 0.2s;
+        }
+        .ui-container button:hover {
+            background-color: #30363d;
+            transform: scale(1.05);
+        }
+        
+        #game-info {
+            background: rgba(13, 17, 23, 0.7);
+            padding: 1rem 1.5rem;
+            width: 350px;
+            border-radius: 10px;
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            z-index: 10;
+            text-align: left;
+            box-shadow: 0 5px 15px rgba(0,0,0,0.5);
+        }
+        #timer-bar {
+            width: 100%;
+            height: 10px;
+            background-color: #30363d;
+            border-radius: 5px;
+            margin-top: 10px;
+            overflow: hidden;
+        }
+        #timer-fill {
+            height: 100%;
+            width: 100%;
+            background-color: #58a6ff;
+            transition: width 1s linear;
+        }
+        #soal {
+            font-size: 2rem;
+            font-weight: bold;
+            color: #58a6ff;
+            margin: 1rem 0;
+            text-align: center;
+        }
+        #skor {
+            font-size: 1.5rem;
+            font-weight: bold;
+            color: #c9d1d9;
+        }
+        #jawaban-input {
+            width: 100px;
+            padding: 0.5rem;
+            font-size: 1.2rem;
+            text-align: center;
+            border-radius: 5px;
+            border: 1px solid #30363d;
+            background: #0d1117;
+            color: white;
+            margin-right: 10px;
+        }
+        #submit-btn {
+            padding: 0.5rem 1.5rem;
+            font-size: 1.2rem;
+            background-color: #21262d;
+            border: 1px solid #58a6ff;
+            color: #c9d1d9;
+            border-radius: 5px;
+            cursor: pointer;
+        }
+        #pesan {
+            margin-top: 1rem;
+            font-weight: bold;
+            text-align: center;
+        }
+
+        .correct { color: #34d058; }
+        .wrong { color: #f85149; }
+
+        @keyframes fadeIn {
+            from { opacity: 0; }
+            to { opacity: 1; }
+        }
+        #intro-screen {
+            animation: fadeIn 2s ease-out;
+        }
+    </style>
+</head>
+<body>
+
+    <div id="intro-screen" class="ui-container">
+        <h1>Selamat Datang di Game 3D Matematika!</h1>
+        <p>Game ini akan menguji kecepatan berhitungmu dengan waktu terbatas. <br> Jawab dengan cepat untuk mendapatkan poin bonus!</p>
+    </div>
+
+    <div id="menu-screen" class="ui-container hidden">
+        <h1>Menu Utama</h1>
+        <p>Ayo mulai permainan!</p>
+        <button id="start-btn">Mulai</button>
+    </div>
+
+    <div id="difficulty-screen" class="ui-container hidden">
+        <h1>Pilih Tingkat Kesulitan</h1>
+        <button id="mudah-btn">Mudah</button>
+        <button id="sulit-btn">Sulit</button>
+    </div>
+
+    <div id="game-screen" class="ui-container hidden">
+        <div id="game-info">
+            <div id="skor">Skor: 0</div>
+            <div id="timer-bar"><div id="timer-fill"></div></div>
+            <p id="soal"></p>
+            <div style="text-align: center;">
+                <input type="number" id="jawaban-input" placeholder="Jawaban">
+                <button id="submit-btn">Submit</button>
+            </div>
+            <p id="pesan"></p>
+        </div>
+    </div>
+
+    <div id="game-over-screen" class="ui-container hidden">
+        <h1>Game Over!</h1>
+        <p>Skor Akhir Kamu:</p>
+        <p id="final-score" style="font-size: 2.5rem;"></p>
+        <button id="play-again-btn">Main Lagi</button>
+    </div>
+
+    <script>
+        // --- VARIABEL GAME GLOBAL ---
+        let angka1, angka2, jawabanBenar;
+        let skor = 0;
+        let kesulitan = 'mudah';
+        let gameAktif = false;
+        let waktuSisa = 10;
+        let timerInterval;
+
+        // Elemen-elemen HTML
+        const introScreen = document.getElementById('intro-screen');
+        const menuScreen = document.getElementById('menu-screen');
+        const difficultyScreen = document.getElementById('difficulty-screen');
+        const gameScreen = document.getElementById('game-screen');
+        const gameOverScreen = document.getElementById('game-over-screen');
+
+        const soalElem = document.getElementById('soal');
+        const jawabanInputElem = document.getElementById('jawaban-input');
+        const pesanElem = document.getElementById('pesan');
+        const skorElem = document.getElementById('skor');
+        const timerFillElem = document.getElementById('timer-fill');
+        const finalScoreElem = document.getElementById('final-score');
+
+        // --- FUNGSI NAVIGASI LAYAR ---
+        function tampilkanLayar(layar) {
+            introScreen.classList.add('hidden');
+            menuScreen.classList.add('hidden');
+            difficultyScreen.classList.add('hidden');
+            gameScreen.classList.add('hidden');
+            gameOverScreen.classList.add('hidden');
+            layar.classList.remove('hidden');
+        }
+
+        // --- LOGIKA GAME MATEMATIKA ---
+        function mulaiGame() {
+            skor = 0;
+            skorElem.innerHTML = `Skor: ${skor}`;
+            gameAktif = true;
+            buatSoalBaru();
+        }
+        
+        function buatSoalBaru() {
+            let maxAngka = kesulitan === 'mudah' ? 10 : 50;
+            angka1 = Math.floor(Math.random() * maxAngka) + 1;
+            angka2 = Math.floor(Math.random() * maxAngka) + 1;
+            jawabanBenar = angka1 + angka2;
+
+            soalElem.innerHTML = `${angka1} + ${angka2} = ?`;
+            jawabanInputElem.value = '';
+            pesanElem.innerHTML = '';
+            
+            resetTimer();
+        }
+
+        function cekJawaban() {
+            if (!gameAktif) return;
+            const jawabanPengguna = parseInt(jawabanInputElem.value);
+            
+            if (jawabanPengguna === jawabanBenar) {
+                const poinTambahan = waktuSisa * (kesulitan === 'sulit' ? 2 : 1);
+                skor += poinTambahan;
+                skorElem.innerHTML = `Skor: ${skor}`;
+                pesanElem.innerHTML = `Benar! (+${poinTambahan} poin)`;
+                pesanElem.className = 'correct';
+                animateKubus(true);
+                setTimeout(buatSoalBaru, 1500);
+            } else {
+                pesanElem.innerHTML = 'Salah. Coba lagi.';
+                pesanElem.className = 'wrong';
+                animateKubus(false);
+            }
+        }
+        
+        // --- LOGIKA TIMER ---
+        function resetTimer() {
+            clearInterval(timerInterval);
+            waktuSisa = 10;
+            timerFillElem.style.width = '100%';
+            timerInterval = setInterval(() => {
+                waktuSisa--;
+                const persentaseSisa = (waktuSisa / 10) * 100;
+                timerFillElem.style.width = `${persentaseSisa}%`;
+
+                if (waktuSisa <= 0) {
+                    clearInterval(timerInterval);
+                    selesaikanGame();
+                }
+            }, 1000);
+        }
+
+        function selesaikanGame() {
+            gameAktif = false;
+            finalScoreElem.innerHTML = skor;
+            tampilkanLayar(gameOverScreen);
+        }
+
+        // --- EVENT LISTENERS UI ---
+        document.getElementById('start-btn').addEventListener('click', () => {
+            tampilkanLayar(difficultyScreen);
+        });
+
+        document.getElementById('mudah-btn').addEventListener('click', () => {
+            kesulitan = 'mudah';
+            tampilkanLayar(gameScreen);
+            mulaiGame();
+        });
+
+        document.getElementById('sulit-btn').addEventListener('click', () => {
+            kesulitan = 'sulit';
+            tampilkanLayar(gameScreen);
+            mulaiGame();
+        });
+
+        document.getElementById('submit-btn').addEventListener('click', cekJawaban);
+        jawabanInputElem.addEventListener('keypress', (e) => {
+            if (e.key === 'Enter') {
+                cekJawaban();
+            }
+        });
+        
+        document.getElementById('play-again-btn').addEventListener('click', () => {
+            tampilkanLayar(menuScreen);
+        });
+
+        // --- ANIMASI INTRO ---
+        setTimeout(() => {
+            tampilkanLayar(menuScreen);
+        }, 3000);
+
+        // --- VISUALISASI 3D MENGGUNAKAN THREE.JS ---
+        const scene = new THREE.Scene();
+        const camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 0.1, 1000);
+        const renderer = new THREE.WebGLRenderer({ antialias: true });
+
+        renderer.setSize(window.innerWidth, window.innerHeight);
+        document.body.appendChild(renderer.domElement);
+
+        const geometry = new THREE.SphereGeometry(1, 32, 32);
+        const material = new THREE.MeshNormalMaterial();
+        const bola = new THREE.Mesh(geometry, material);
+        scene.add(bola);
+
+        camera.position.z = 5;
+
+        let rotasiX = 0.005;
+        let rotasiY = 0.005;
+
+        function animate() {
+            requestAnimationFrame(animate);
+            bola.rotation.x += rotasiX;
+            bola.rotation.y += rotasiY;
+            renderer.render(scene, camera);
+        }
+
+        function animateKubus(isCorrect) {
+            if (isCorrect) {
+                rotasiX = 0.05;
+                rotasiY = 0.05;
+                setTimeout(() => {
+                    rotasiX = 0.005;
+                    rotasiY = 0.005;
+                }, 1000);
+            } else {
+                rotasiX = -0.05;
+                rotasiY = -0.05;
+                setTimeout(() => {
+                    rotasiX = 0.005;
+                    rotasiY = 0.005;
+                }, 1000);
+            }
+        }
+        
+        animate();
+    </script>
+</body>
+</html>
